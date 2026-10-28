@@ -25,11 +25,11 @@ export class StarMesh {
       uTime: { value: 0 },
       uTemperature: { value: 5778 },
       uActivity: { value: 0.2 },
-      uNoiseScale: { value: 2.8 },
+      uIntensity: { value: 1.0 },
       uSeed: { value: Math.random() * 100 },
       uBlackHole: { value: 0 },
-      uHotColor: { value: new THREE.Color(1.0, 0.92, 0.78) },
-      uCoolColor: { value: new THREE.Color(0.75, 0.18, 0.04) },
+      uBaseColor: { value: new THREE.Color(1.0, 1.0, 1.0) },
+      uSpotColor: { value: new THREE.Color(0.2, 0.0, 0.0) },
     };
 
     const geo = new THREE.SphereGeometry(1, 64, 64);
@@ -70,38 +70,46 @@ export class StarMesh {
     this.uniforms.uActivity.value = state.activity;
     this.uniforms.uBlackHole.value = state.isBlackHole ? 1 : 0;
 
-    const color = state.isBlackHole
-      ? new THREE.Color(0x000000)
-      : temperatureToColor(state.temperature, THREE);
-      
-    // Crucial: Do NOT desaturate the base color with white. Keep it pure blackbody.
-    this.uniforms.uHotColor.value.copy(color);
-    
-    // Cool color is a deeper, more saturated version of the base
-    this.uniforms.uCoolColor.value.copy(color).multiplyScalar(0.6);
-    
-    // Spot color is a dark, reddish-brown based on the base color
-    this.uniforms.uSpotColor.value.setRGB(
-      color.r * 0.15 + 0.05, 
-      color.g * 0.05, 
-      color.b * 0.02
-    );
-
-    this.light.color.copy(color);
-    this.light.intensity = state.isBlackHole ? 0 : 2.2;
-
     if (state.isBlackHole) {
+      this.uniforms.uIntensity.value = 0;
       this.glow.visible = false;
-    } else {
-      this.glow.visible = true;
-      this.glow.material.color.copy(color);
-      const glowScale = state.isRemnant
-        ? visualRadius * 1.4
-        : visualRadius * (state.isSupernova ? 6.0 : 3.6);
-      this.glow.scale.setScalar(glowScale);
-      // Boost glow opacity for a more luminous look
-      this.glow.material.opacity = state.isRemnant ? 0.6 : 0.85;
+      this.light.intensity = 0;
+      return;
     }
+
+    // --- BLACKBODY PHYSICS ---
+    // Base surface color
+    const baseColor = temperatureToColor(state.temperature, THREE);
+    this.uniforms.uBaseColor.value.copy(baseColor);
+
+    // Starspots are typically 1000K - 2000K cooler than the surface
+    const spotTemp = Math.max(1500, state.temperature - 1500);
+    const spotColor = temperatureToColor(spotTemp, THREE);
+    
+    // Spots on hot stars are still blue, but less intense. Spots on cool stars are deep red/brown.
+    this.uniforms.uSpotColor.value.copy(spotColor).multiplyScalar(0.3);
+
+    // --- LUMINOSITY MATH ---
+    // Convert solar luminosity to visual intensity.
+    // Sun (L=1) -> ~1.0 intensity.
+    // O-type (L=10,000) -> ~2.8 intensity (blows out to white).
+    // Red dwarf (L=0.01) -> ~0.6 intensity.
+    const logL = Math.log10(Math.max(0.001, state.luminositySolar));
+    const intensity = clamp(1.0 + (logL * 0.45), 0.4, 4.0);
+    this.uniforms.uIntensity.value = intensity;
+
+    // Update the scene light so the planet/glow gets the right color
+    this.light.color.copy(baseColor);
+    this.light.intensity = 2.0 * intensity;
+
+    // Update the glow sprite
+    this.glow.visible = true;
+    this.glow.material.color.copy(baseColor);
+    
+    // Glow gets much bigger and brighter for high luminosity stars (supernova/giants)
+    const glowScale = visualRadius * (state.isSupernova ? 6.0 : 3.6) * Math.min(intensity, 2.0);
+    this.glow.scale.setScalar(glowScale);
+    this.glow.material.opacity = clamp(0.5 + (intensity * 0.2), 0.5, 1.0);
   }
 
   dispose() {
