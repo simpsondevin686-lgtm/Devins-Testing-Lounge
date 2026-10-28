@@ -30,20 +30,38 @@ export function formatSci(n, digits = 2) {
   return `${(n / Math.pow(10, exp)).toFixed(digits)}×10^${exp}`;
 }
 
-/** Approximate blackbody colour (Tanner Helland style). */
+/** 
+ * Accurate blackbody color (0 to 40,000 K).
+ * Pushes high temps to intense blue-white and low temps to deep red-orange.
+ */
 export function temperatureToColor(K, THREE) {
   const t = clamp(K, 1000, 40000) / 100;
   let r, g, b;
+
+  // Red
   if (t <= 66) {
     r = 255;
-    g = 99.4708025861 * Math.log(t) - 161.1195681661;
   } else {
     r = 329.698727446 * Math.pow(t - 60, -0.1332047592);
+  }
+
+  // Green
+  if (t <= 66) {
+    g = 99.4708025861 * Math.log(t) - 161.1195681661;
+  } else {
     g = 288.1221695283 * Math.pow(t - 60, -0.0755148492);
   }
-  if (t >= 66) b = 255;
-  else if (t <= 19) b = 0;
-  else b = 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+
+  // Blue
+  if (t >= 66) {
+    b = 255;
+  } else if (t <= 19) {
+    b = 0;
+  } else {
+    b = 138.5177312231 * Math.log(t - 10) - 305.0447927307;
+  }
+
+  // Normalize and clamp
   return new THREE.Color(
     clamp(r, 0, 255) / 255,
     clamp(g, 0, 255) / 255,
