@@ -25,11 +25,10 @@ varying vec3 vPos;
 uniform float uTime;
 uniform float uTemperature;
 uniform float uActivity;
-uniform float uNoiseScale;
+uniform float uIntensity; // Driven by Luminosity
 uniform float uSeed;
 uniform float uBlackHole;
-uniform vec3 uHotColor;
-uniform vec3 uCoolColor;
+uniform vec3 uBaseColor;
 uniform vec3 uSpotColor;
 
 // Ashima 3D simplex noise
@@ -102,34 +101,38 @@ void main() {
   vec3 viewDir = normalize(vViewPosition);
   float limb = clamp(dot(vNormal, viewDir), 0.0, 1.0);
 
-  // Granulation: high frequency noise for convective cells
-  vec3 p = normalize(vPos) * uNoiseScale;
+  // Granulation noise (plasma churning)
+  vec3 p = normalize(vPos) * 8.0;
   float t = uTime * 0.15;
-  float n = fbm(p, t) * (0.55 + uActivity * 0.8);
+  float n = fbm(p, t) * (0.5 + uActivity * 0.5);
 
-  // Starspots: magnetic regions (cooler, darker)
-  float spotNoise = snoise(normalize(vPos) * 12.0 + uSeed * 5.0 + t * 0.2);
-  float spots = smoothstep(0.45, 0.8, spotNoise) * (0.3 + uActivity * 0.7);
+  // Starspots are magnetic regions (cooler = darker)
+  float spotNoise = snoise(normalize(vPos) * 14.0 + uSeed * 5.0 + t * 0.2);
+  float spotMask = smoothstep(0.4, 0.8, spotNoise) * uActivity;
 
-  // Base blackbody color (mix hot and cool based on granulation)
-  vec3 base = mix(uCoolColor, uHotColor, clamp(n * 0.5 + 0.5, 0.0, 1.0));
-
-  // Blend in cooler spots
-  base = mix(base, uSpotColor, spots);
-
-  // Limb darkening (center is brightest, edges glow)
-  float limbDarkening = pow(limb, 0.55);
+  // Mix base surface with cooler spots based on noise
+  vec3 surfaceColor = mix(uBaseColor, uSpotColor, spotMask);
   
-  // Corona rim glow
-  float rim = pow(1.0 - limb, 3.0) * 0.8;
+  // Add granulation brightness variation
+  surfaceColor *= (0.85 + 0.15 * n);
 
-  // Combine
-  vec3 col = base * (0.7 + 0.3 * limbDarkening);
-  col += uHotColor * rim;
+  // Limb darkening (edges are cooler, center is hotter)
+  float limbDarkening = pow(limb, 0.55);
+  vec3 col = surfaceColor * limbDarkening;
 
-  // Subtle flicker
-  float flicker = 1.0 + uActivity * 0.15 * sin(uTime * 2.5 + n * 10.0 + uSeed);
-  col *= flicker;
+  // Add intense coronal rim glow
+  float rim = pow(1.0 - limb, 4.0);
+  col += uBaseColor * rim * 1.5;
+
+  // LUMINOSITY BLOOM: 
+  // Multiply by intensity. Values > 1.0 will blow out to white in the center.
+  col *= uIntensity;
+  
+  // Tone mapping / clamp to screen white with a blue tint for hot stars
+  if (uIntensity > 1.0) {
+    vec3 bloom = mix(vec3(1.0), uBaseColor * 1.5, 0.3);
+    col = mix(col, bloom, clamp((uIntensity - 1.0) * 0.15, 0.0, 0.9));
+  }
 
   gl_FragColor = vec4(col, 1.0);
 }
