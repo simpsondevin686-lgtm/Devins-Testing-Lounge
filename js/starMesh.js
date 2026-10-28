@@ -73,8 +73,19 @@ export class StarMesh {
     const color = state.isBlackHole
       ? new THREE.Color(0x000000)
       : temperatureToColor(state.temperature, THREE);
-    this.uniforms.uHotColor.value.copy(color).lerp(new THREE.Color(1, 1, 1), 0.25);
-    this.uniforms.uCoolColor.value.copy(color).multiplyScalar(0.55);
+      
+    // Crucial: Do NOT desaturate the base color with white. Keep it pure blackbody.
+    this.uniforms.uHotColor.value.copy(color);
+    
+    // Cool color is a deeper, more saturated version of the base
+    this.uniforms.uCoolColor.value.copy(color).multiplyScalar(0.6);
+    
+    // Spot color is a dark, reddish-brown based on the base color
+    this.uniforms.uSpotColor.value.setRGB(
+      color.r * 0.15 + 0.05, 
+      color.g * 0.05, 
+      color.b * 0.02
+    );
 
     this.light.color.copy(color);
     this.light.intensity = state.isBlackHole ? 0 : 2.2;
@@ -88,6 +99,8 @@ export class StarMesh {
         ? visualRadius * 1.4
         : visualRadius * (state.isSupernova ? 6.0 : 3.6);
       this.glow.scale.setScalar(glowScale);
+      // Boost glow opacity for a more luminous look
+      this.glow.material.opacity = state.isRemnant ? 0.6 : 0.85;
     }
   }
 
@@ -100,3 +113,8 @@ export class StarMesh {
     this.glow.material.dispose();
   }
 }
+
+// Inject the new spot color uniform
+StarMesh.prototype.addSpotColorUniform = function() {
+  this.uniforms.uSpotColor = { value: new THREE.Color(0.2, 0.05, 0.0) };
+};
