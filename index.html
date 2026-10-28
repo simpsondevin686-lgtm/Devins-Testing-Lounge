@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Stellar Evolution — Devins Testing Lounge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="hud">
+    <div class="hud-row"><span class="hud-label">Type</span><span id="hud-type">—</span></div>
+    <div class="hud-row"><span class="hud-label">Stage</span><span id="hud-stage">—</span></div>
+    <div class="hud-row"><span class="hud-label">Age</span><span id="hud-age">—</span></div>
+    <div class="hud-row"><span class="hud-label">Mass</span><span id="hud-mass">—</span></div>
+    <div class="hud-row"><span class="hud-label">Temp</span><span id="hud-temp">—</span></div>
+    <div class="hud-row"><span class="hud-label">Radius</span><span id="hud-radius">—</span></div>
+    <div class="hud-row"><span class="hud-label">Lum</span><span id="hud-lum">—</span></div>
+  </div>
+
+  <div id="time-ui">
+    <button id="btn-play" aria-label="Play/Pause">⏸</button>
+    <button id="btn-reset" aria-label="Reset">↺</button>
+    <input type="range" id="speed-slider" min="0" max="1000" value="420" aria-label="Time speed">
+    <div id="speed-label">—</div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
